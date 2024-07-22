@@ -12,7 +12,7 @@
 To see speed comparison try:
 `cargo test speed_test -- --nocapture`
 
-## Resources
+## resources
 - [Wikipedia](https://en.wikipedia.org/wiki/K-means_clustering)
 - [Centroid Initialization Methods for k-means Clustering](https://www.kdnuggets.com/2020/06/centroid-initialization-k-means-clustering.html)
 - [Stack Overflow](https://stackoverflow.com/a/5468119)
