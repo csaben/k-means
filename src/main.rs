@@ -1,47 +1,21 @@
+use std::env;
 use rand::{distributions::Uniform, Rng}; // 0.8.0
-// use k_means::{generate_points, Point, calculate_centroid};
-
-
-// fn main() {
-//     let samples: usize = 5;
-//     let clusters: usize = 2;
-//     let points = generate_points(samples);
-//     let centroid = calculate_centroid(points);
-//     println!("{:?}", centroid)
-//     // k_means_naive(clusters, points);
-    
-// }
-
-// pub fn k_means_naive(k: usize, points: Vec<Point>) {
-//     // takes k clusters and Vec<Point> and returns Points organized by clusters
-//     let clusters = (0..k).map(|_| Vec::new() as Vec<Point>).collect::<Vec<_>>();
-//     println!("{:?}", clusters);
-// }
-
-use k_means::{generate_points, Point, k_means_naive};
 use k_means::plotting::{plot_clusters};
-
-// fn main() {
-//     let samples: usize = 100;
-//     let clusters: usize = 3;
-//     let points = generate_points(samples);
-//     let max_iterations = 100;
-    
-//     let result = k_means_naive(clusters, points, max_iterations);
-    
-//     for (i, cluster) in result.iter().enumerate() {
-//         println!("Cluster {}: {} points", i, cluster.len());
-//         println!("{:?}", cluster);
-//     }
-// }
-
-use k_means::{Centroid, calculate_centroid};
+use k_means::{Centroid, calculate_centroid, generate_points, Point, k_means_naive};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // expects `cargo run NUM_CLUSTERS`
+    let args: Vec<String> = env::args().collect();
+    if args.len() < 2 {
+        println!("number of clusters required!");
+        return Ok(());
+    }
+    // turbofish dis bish
+    let clusters: usize = args[1].parse::<usize>().unwrap();
     let samples: usize = 100;
-    let clusters: usize = 3;
-    let points = generate_points(samples);
     let max_iterations = 100;
+
+    let points = generate_points(samples);
     
     let result = k_means_naive(clusters, points.clone(), max_iterations);
     

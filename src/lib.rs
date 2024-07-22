@@ -47,7 +47,69 @@ impl Centroids {
             })
             .collect()
     }
+    pub fn plus_plus_initialize(k: usize, points: &[Point]) -> Vec<Centroid> {
+        let mut rng = rand::thread_rng();
+        // set initial centroid as first
+        let centroids: Vec[Point] = Vec::with_capacity(k);
+        let c0: Point = points[0];
+        centroids.push(c0);
+        for _ k.iter() {
+            // calculate dist b/w point and it's nearest centroid
+            // get list of those
+            dist_sq: Vec<f64> = Vec::with_capacity(points.len());
+            for point in points {
+                let closest_centroid_index = centroids
+                .iter()
+                .enumerate()
+                .min_by_key(|(_, centroid)| {
+                    let dist = distance(*point, centroid.coordinate);
+                    (dist * 1000.0) as i64 // Convert to integer for comparison
+                } )
+                .map(|(index, _)| index)
+                .unwrap();
+            }
+            dist_sq[closest_centroid_index].push(*point);
+
+            // calculate prob / sum for each element, ps
+            let probs: Vec<f64> = dist_sq.iter()
+            .map(|&d| d / dist_sq.iter().sum()::<f64>())
+            .collect();
+
+            // calculate cumsum (.1,.2,.4..3)->(.1,.3,.7,1.0)
+            pub fn cumsum(probs: Vec<f64>)-> Vec<f64> {
+                // O(n)
+                let mut cumulative_probs = Vec::with_capacity(probs.len());
+                let mut sum = 0.0;
+                for &prob in probs.iter() {
+                    sum += prob;
+                    cumulative_probs.push(sum);
+                }
+            }
+            let cumsum_vec: Vec<64> = cumsum(probs);
+            // vs O(n^2)
+            // let cumprobs: Vec<f64> = probs.iter()
+            // .enumerate()
+            // .map(|index &p| probs.iter().take(index+1).sum()::<f64>())
+            // .collect();
+
+            // get a random num, r
+            let r: f64 = rand.gen(); // float bw 0 and 1 
+
+            // for i, p in enumerate(ps) if r < p then centroids.append(points[i])
+            for (i, p) in cumsum_vec.iter()
+            .enumerate() {
+                if r < p {
+                    let j = i;
+                }
+                break;
+            }
+            // -> these two steps are a computationally efficient, hacky way
+            // of 'indexing' a prob close to those generated
+
+        centroids.push(&points[j]);
+        }
     }
+}
 
 pub fn calculate_centroid(cluster: Vec<Point>) -> Centroid {
     // cluster.iter().x.sum() / cluster.len()
@@ -63,9 +125,7 @@ pub fn calculate_centroid(cluster: Vec<Point>) -> Centroid {
     }
 }
 
-// pub fn assign_clusters(points: Vec<Point>, centroids: Vec<Centroid>) {
-//     // (0..points.len()).map()
-// }
+
 pub fn assign_clusters(points: &[Point], centroids: &[Centroid]) -> Vec<Vec<Point>> {
     let mut clusters: Vec<Vec<Point>> = vec![Vec::new(); centroids.len()];
     
@@ -90,7 +150,7 @@ pub fn k_means_naive(k: usize, points: Vec<Point>, max_iterations: usize) -> Vec
     let mut centroids = Centroids::randomly_initialize(k, &points);
     let mut clusters: Vec<Vec<Point>>;
     
-    for _ in 0..max_iterations {
+    for iter in 0..max_iterations {
         clusters = assign_clusters(&points, &centroids);
         
         let new_centroids: Vec<Centroid> = clusters
@@ -99,6 +159,7 @@ pub fn k_means_naive(k: usize, points: Vec<Point>, max_iterations: usize) -> Vec
             .collect();
         
         if new_centroids == centroids {
+            println!{"local minimum found before max iterations reached! {}/{} iters needed:", iter, max_iterations};
             break;
         }
         
