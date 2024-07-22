@@ -1,5 +1,11 @@
 use rand::{distributions::Uniform, Rng}; // 0.8.0
+// for seed in speed testing
+use rand::SeedableRng;
+use rand::rngs::StdRng;
+// for fast_plus_plus_initialize
+use rand::distributions::{Distribution, WeightedIndex};
 pub mod plotting;
+pub mod tests;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Point {
@@ -7,8 +13,10 @@ pub struct Point {
     pub y: f64
 }
 
-pub fn generate_points(k: usize) -> Vec<Point> {
-    let mut rng = rand::thread_rng();
+pub fn generate_points(k: usize, seed: u64) -> Vec<Point> {
+    // let mut rng = rand::thread_rng();
+    let mut rng = StdRng::seed_from_u64(seed);
+
     let range = Uniform::from(0..100);
     
     (0..k).map(|_| Point {
@@ -36,8 +44,10 @@ pub struct Centroids {
 }
 
 impl Centroids {
-    pub fn randomly_initialize(k: usize, points: &[Point]) -> Vec<Centroid> {
-        let mut rng = rand::thread_rng();
+    pub fn randomly_initialize(k: usize, points: &[Point], seed: u64) -> Vec<Centroid> {
+        // o(k * n)
+        // let mut rng = rand::thread_rng();
+        let mut rng = StdRng::seed_from_u64(seed);
         (0..k)
             .map(|_| {
                 let index = rng.gen_range(0..points.len());
@@ -47,69 +57,81 @@ impl Centroids {
             })
             .collect()
     }
-    pub fn plus_plus_initialize(k: usize, points: &[Point]) -> Vec<Centroid> {
-        let mut rng = rand::thread_rng();
-        // set initial centroid as first
-        let centroids: Vec[Point] = Vec::with_capacity(k);
-        let c0: Point = points[0];
-        centroids.push(c0);
-        for _ k.iter() {
-            // calculate dist b/w point and it's nearest centroid
-            // get list of those
-            dist_sq: Vec<f64> = Vec::with_capacity(points.len());
+
+    pub fn plus_plus_initialize(k: usize, points: &[Point], seed: u64) -> Vec<Centroid> {
+        // o(k^2 * n)
+        // let mut rng = rand::thread_rng();
+        let mut rng = StdRng::seed_from_u64(seed);
+
+        let mut centroids: Vec<Centroid> = Vec::with_capacity(k);
+        centroids.push(Centroid{ coordinate: points[0].clone()});
+
+        for _ in 1..k {
+            let mut dist_sq: Vec<f64> = Vec::with_capacity(points.len());
             for point in points {
-                let closest_centroid_index = centroids
-                .iter()
-                .enumerate()
-                .min_by_key(|(_, centroid)| {
-                    let dist = distance(*point, centroid.coordinate);
-                    (dist * 1000.0) as i64 // Convert to integer for comparison
-                } )
-                .map(|(index, _)| index)
-                .unwrap();
+                let min_dist = centroids.iter()
+                    .map(|c| distance(*point, c.coordinate))
+                    // what does this line do?
+                    // map returned an iterable list of distances
+                    // min_by goes through and compares idx 0 to 1, .. and returns smallest dist value
+                    .min_by(|a, b| a.partial_cmp(b).unwrap())
+                    .unwrap();
+                dist_sq.push(min_dist * min_dist);
             }
-            dist_sq[closest_centroid_index].push(*point);
 
-            // calculate prob / sum for each element, ps
-            let probs: Vec<f64> = dist_sq.iter()
-            .map(|&d| d / dist_sq.iter().sum()::<f64>())
-            .collect();
+            let total: f64 = dist_sq.iter().sum();
+            let probs: Vec<f64> = dist_sq.iter().map(|&d| d / total).collect();
+            let cumsum_vec: Vec<f64> = cumsum(&probs);
 
-            // calculate cumsum (.1,.2,.4..3)->(.1,.3,.7,1.0)
-            pub fn cumsum(probs: Vec<f64>)-> Vec<f64> {
-                // O(n)
-                let mut cumulative_probs = Vec::with_capacity(probs.len());
-                let mut sum = 0.0;
-                for &prob in probs.iter() {
-                    sum += prob;
-                    cumulative_probs.push(sum);
-                }
-            }
-            let cumsum_vec: Vec<64> = cumsum(probs);
-            // vs O(n^2)
-            // let cumprobs: Vec<f64> = probs.iter()
-            // .enumerate()
-            // .map(|index &p| probs.iter().take(index+1).sum()::<f64>())
-            // .collect();
-
-            // get a random num, r
-            let r: f64 = rand.gen(); // float bw 0 and 1 
-
-            // for i, p in enumerate(ps) if r < p then centroids.append(points[i])
-            for (i, p) in cumsum_vec.iter()
-            .enumerate() {
-                if r < p {
-                    let j = i;
-                }
-                break;
-            }
-            // -> these two steps are a computationally efficient, hacky way
-            // of 'indexing' a prob close to those generated
-
-        centroids.push(&points[j]);
+            let r: f64 = rng.gen();
+            let j = cumsum_vec.iter().position(|&p| r < p).unwrap();
+            centroids.push(Centroid {coordinate: points[j].clone() } );
         }
+
+        centroids
+    }
+    pub fn fast_plus_plus_initialize(k: usize, points: &[Point], seed: u64) -> Vec<Centroid> {
+        // let mut rng = rand::thread_rng();
+        let mut rng = StdRng::seed_from_u64(seed);
+        let mut centroids: Vec<Centroid> = Vec::with_capacity(k);
+        let mut distances: Vec<f64> = vec![f64::INFINITY; points.len()];
+        
+        // Choose the first centroid randomly
+        let first_index = rng.gen_range(0..points.len());
+        centroids.push(Centroid { coordinate: points[first_index].clone() });
+        
+        for _ in 1..k {
+            let mut total_distance = 0.0;
+            
+            // Update distances
+            for (i, point) in points.iter().enumerate() {
+                let dist = distance(*point, centroids.last().unwrap().coordinate);
+                if dist < distances[i] {
+                    distances[i] = dist;
+                }
+                total_distance += distances[i] * distances[i];
+            }
+            
+            // Choose next centroid
+            let dist = WeightedIndex::new(distances.iter().map(|d| d * d)).unwrap();
+            let chosen_index = dist.sample(&mut rng);
+            centroids.push(Centroid { coordinate: points[chosen_index].clone() });
+        }
+        
+        centroids
     }
 }
+
+fn cumsum(probs: &[f64]) -> Vec<f64> {
+    let mut cumulative_probs = Vec::with_capacity(probs.len());
+    let mut sum = 0.0;
+    for &prob in probs {
+        sum += prob;
+        cumulative_probs.push(sum);
+    }
+    cumulative_probs
+}
+
 
 pub fn calculate_centroid(cluster: Vec<Point>) -> Centroid {
     // cluster.iter().x.sum() / cluster.len()
@@ -146,25 +168,33 @@ pub fn assign_clusters(points: &[Point], centroids: &[Centroid]) -> Vec<Vec<Poin
     clusters
 }
 
-pub fn k_means_naive(k: usize, points: Vec<Point>, max_iterations: usize) -> Vec<Vec<Point>> {
-    let mut centroids = Centroids::randomly_initialize(k, &points);
-    let mut clusters: Vec<Vec<Point>>;
-    
-    for iter in 0..max_iterations {
-        clusters = assign_clusters(&points, &centroids);
+pub fn k_means_algo<F>(
+    k: usize,
+    points: Vec<Point>,
+    max_iterations: usize,
+    init_func: F,
+    seed: u64
+) -> Vec<Vec<Point>>
+where
+    F: Fn(usize, &[Point], u64) -> Vec<Centroid>
+    {
+        let mut centroids = init_func(k, &points, seed);
         
-        let new_centroids: Vec<Centroid> = clusters
-            .iter()
-            .map(|cluster| calculate_centroid(cluster.to_vec()))
-            .collect();
-        
-        if new_centroids == centroids {
-            println!{"local minimum found before max iterations reached! {}/{} iters needed:", iter, max_iterations};
-            break;
+        for iter in 0..max_iterations {
+            let clusters = assign_clusters(&points, &centroids);
+            
+            let new_centroids: Vec<Centroid> = clusters
+                .iter()
+                .map(|cluster| calculate_centroid(cluster.to_vec()))
+                .collect();
+            
+            if new_centroids == centroids {
+                println!{"local minimum found before max iterations reached! {}/{} iters needed:", iter, max_iterations};
+                break;
+            }
+            
+            centroids = new_centroids;
         }
         
-        centroids = new_centroids;
+        assign_clusters(&points, &centroids)
     }
-    
-    assign_clusters(&points, &centroids)
-}

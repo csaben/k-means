@@ -1,7 +1,7 @@
 use std::env;
 use rand::{distributions::Uniform, Rng}; // 0.8.0
 use k_means::plotting::{plot_clusters};
-use k_means::{Centroid, calculate_centroid, generate_points, Point, k_means_naive};
+use k_means::{Centroids, Centroid, calculate_centroid, generate_points, Point, k_means_algo};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // expects `cargo run NUM_CLUSTERS`
@@ -12,12 +12,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     // turbofish dis bish
     let clusters: usize = args[1].parse::<usize>().unwrap();
+    let seed: u64 = 42;
     let samples: usize = 100;
     let max_iterations = 100;
 
-    let points = generate_points(samples);
+    let points = generate_points(samples, seed);
     
-    let result = k_means_naive(clusters, points.clone(), max_iterations);
+    // let result = k_means_algo(clusters, points.clone(), max_iterations, Centroids::randomly_initialize, seed);
+    // let result = k_means_algo(clusters, points.clone(), max_iterations, Centroids::plus_plus_initialize, seed);
+    let result = k_means_algo(clusters, points.clone(), max_iterations, Centroids::fast_plus_plus_initialize, seed);
     
     let centroids: Vec<Centroid> = result
         .iter()
